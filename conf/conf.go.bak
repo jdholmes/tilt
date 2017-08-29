@@ -1,0 +1,195 @@
+package conf
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"log"
+	"math/rand"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+)
+
+type Config struct {
+	Pdist      int
+	Height     int
+	Wide       int
+	MaxTrials  int
+	Practice   int
+	BreakDelay int
+	EndDelay   int
+	Iti        int
+	BlockNames []string
+}
+
+type TrialStruct struct {
+	Condition   int
+	Top         int
+	Mid         int
+	Bottom      int
+	Orientation int
+	NAdjust     int
+	Pse         float32
+	Standard    int
+	Gap         int
+}
+
+type Block struct {
+	BlockName string
+	Trials    []TrialStruct
+}
+
+var TrialPool [100]TrialStruct
+var tNum int = 0
+
+func shuffle(slTrials []TrialStruct) {
+	//  randomize trials in this block
+	var imax int
+	imax = len(slTrials)
+	for i := 0; i < imax; i++ {
+		k := rand.Int() % (imax - i)
+		k = k + i
+		slTrials[i], slTrials[k] = slTrials[k], slTrials[i]
+	}
+}
+
+/* MakeBlocks needs to be called from the main with consecutive
+elements of an array of Block.  tNum, above, is like a
+C static and is a index into TrialPool.  It is used to create
+slices, Block.Trials, from TrialPool.
+*/
+
+func (Blk *Block) MakeBlocks(blockName string, file string) {
+	var tStart int
+	var str string
+	var err error
+
+	ti := time.Now()
+	tt := int64(ti.Nanosecond())
+	rand.Seed(tt)
+	tStart = tNum
+	fi, er := os.Open(file)
+
+	if er != nil {
+		log.Fatal(err)
+	}
+	r := bufio.NewReader(fi)
+	defer fi.Close()
+	Blk.BlockName = blockName
+	for {
+		str, err = r.ReadString('\n')
+		if err == io.EOF ||
+			strings.HasPrefix(str, blockName) {
+			break
+		}
+	}
+	for {
+		str, err = r.ReadString('\n')
+
+		if err == io.EOF || strings.HasPrefix(str, "[") {
+			break
+		}
+
+		if strings.HasPrefix(str, ";") {
+			continue
+		}
+		stA := strings.SplitN(str, " ", 11)
+		for i := 0; i < len(stA); i++ {
+			stA[i] = strings.TrimSpace(stA[i])
+		}
+		TrialPool[tNum].Condition, _ = strconv.Atoi(stA[0])
+		TrialPool[tNum].Top, _ = strconv.Atoi(stA[1])
+		TrialPool[tNum].Mid, _ = strconv.Atoi(stA[2])
+		TrialPool[tNum].Bottom, _ = strconv.Atoi(stA[3])
+		TrialPool[tNum].Orientation, _ = strconv.Atoi(stA[4])
+		tNum++
+	}
+	Blk.Trials = TrialPool[tStart:tNum]
+	shuffle(Blk.Trials)
+}
+
+func (Blk *Block) GiveBlocks() {
+
+	for i := 0; i < len(Blk.Trials); i++ {
+		Blk.Trials[i].Pse = rand.Float32() * 3.0
+		Blk.Trials[i].NAdjust = rand.Int() % 20
+		Blk.Trials[i].Standard = 200
+	}
+
+}
+
+func (trial TrialStruct) GetLine() (s string) {
+
+	s = fmt.Sprintf("%d %d %d %d %d %f %d %d\n",
+		trial.Condition,
+		trial.Top,
+		trial.Mid,
+		trial.Bottom,
+		trial.Orientation,
+		trial.Pse,
+		trial.NAdjust,
+		trial.Standard)
+	return s
+}
+
+
+func (conf *Config) Configure(file string) {
+	fi, err := os.Open(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r := bufio.NewReader(fi)
+	//	skip lines until header [global
+	for {
+		str, err := r.ReadString('\n')
+		if err == io.EOF || strings.HasPrefix(str, "[global") {
+			break
+			//			fmt.Print(str)
+		}
+	}
+	for {
+		//		test for end of section or end of file
+		str, err := r.ReadString('\n')
+		if err == io.EOF || strings.HasPrefix(str, "[") {
+			break
+		}
+		//		skip comments
+		if strings.HasPrefix(str, ";") {
+			continue
+		}
+		stA := strings.SplitN(str, "=", 2)
+		key := strings.TrimSpace(stA[0])
+		val := strings.TrimSpace(stA[1])
+		if key == "BlockNames" {
+			conf.BlockNames = strings.Split(val, ",")[0:]
+			for i := 0; i < len(conf.BlockNames); i++ {
+				conf.BlockNames[i] = strings.TrimSpace(conf.BlockNames[i])
+			}
+			continue
+		}
+		ival, err := strconv.Atoi(val)
+		if err != nil {
+			log.Fatal(err)
+		}
+		switch key {
+		case "Pdist":
+			conf.Pdist = ival
+		case "Height":
+			conf.Height = ival
+		case "Wide":
+			conf.Wide = ival
+		case "Practice":
+			conf.Practice = ival
+		case "BreakDelay":
+			conf.BreakDelay = ival
+		case "EndDelay":
+			conf.EndDelay = ival
+		case "Iti":
+			conf.Iti = ival
+
+		}
+	}
+}

@@ -1,0 +1,4 @@
+john-holmes-imac:conf johnholmes$ go fmt conf.go
+signal 11
+john-holmes-imac:conf johnholmes$ env | grep DYLD_*
+john-holmes-imac:conf johnholmes$ 

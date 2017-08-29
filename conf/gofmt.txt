@@ -1,0 +1,21 @@
+john-holmes-imac:go johnholmes$ cat hello.go
+package main
+
+import "fmt"
+
+func main() {
+
+	var ar = [5]int {5,7,12,4,6}
+	var far = [5]float64 {5.1,7.0,12.2,4.9,6.6}
+//	type interface sum()
+	fmt.Printf("hello, world\n, %d, %f\n", ar[3], far[2])
+}
+
+john-holmes-imac:go johnholmes$ go run hello.go
+hello, world
+, 4, 12.200000
+john-holmes-imac:go johnholmes$ go fmt hello.go
+signal 11
+john-holmes-imac:go johnholmes$ env | grep DYLD_*
+john-holmes-imac:go johnholmes$ 
+
